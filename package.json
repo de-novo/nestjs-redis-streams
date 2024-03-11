@@ -6,6 +6,7 @@
   "license": "MIT",
   "url": "https://github.com/de-novo/nestjs-redis-stream",
   "private": false,
+  "main": "dist/index.js",
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.json",
     "format": "prettier --write \"**/*.ts\"",
