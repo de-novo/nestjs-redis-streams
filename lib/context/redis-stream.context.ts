@@ -58,7 +58,6 @@ export class RedisStreamContext extends BaseRpcContext<RedisStreamContextArgs> {
     this.headers = headers;
     return this;
   }
-
   addMessageHeader(key: string, value: any) {
     this.headers[key] = value;
     return this;

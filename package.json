@@ -1,6 +1,6 @@
 {
   "name": "@de-novo/nestjs-redis-stream",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "",
   "author": "de-novo",
   "license": "MIT",

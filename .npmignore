@@ -2,6 +2,7 @@
 lib
 tests
 index.ts
+example
 package-lock.json
 tslint.json
 tsconfig.json
