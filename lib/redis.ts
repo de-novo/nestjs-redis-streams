@@ -1,8 +1,7 @@
-import Redis, { RedisOptions } from 'ioredis';
+import Redis from 'ioredis';
+import { RedisConnectionOptions } from './interface/redis.interface';
 
-export function createRedisConnection(
-  options?: { options?: RedisOptions } & { path: string },
-) {
+export function createRedisConnection(options?: RedisConnectionOptions) {
   if (!options) {
     return new Redis();
   }

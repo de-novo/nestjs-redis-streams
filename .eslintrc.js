@@ -9,7 +9,12 @@ module.exports = {
     'plugin:@typescript-eslint/eslint-recommended',
     'plugin:@typescript-eslint/recommended',
   ],
-  ignorePatterns: ['.eslintrc.js', 'commitlint.config.js', 'index.js'],
+  ignorePatterns: [
+    '.eslintrc.js',
+    'commitlint.config.js',
+    'index.js',
+    'index.ts',
+  ],
   root: true,
   env: {
     node: true,

@@ -16,7 +16,7 @@ import { AppService } from './app.service';
         consumerGroup: 'api',
         deleteMessagesAfterAck: true,
       },
-      responesePattern: ['test.send'],
+      responsePattern: ['test.send'],
     }),
   ],
   controllers: [AppController],

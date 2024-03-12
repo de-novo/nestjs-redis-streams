@@ -8,7 +8,7 @@ export interface ClientConstructorOptions {
   streams: RedisStreamOptions;
   connection?: RedisConnectionOptions;
   serialization?: ProducerSerialization;
-  responesePattern?: string[];
+  responsePattern?: string[];
 }
 
 export interface ServerConstructorOptions {
