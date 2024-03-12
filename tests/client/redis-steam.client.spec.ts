@@ -198,6 +198,29 @@ describe('RedisStreamClient', () => {
     });
   });
 
+  describe('handleCallback', () => {});
+
+  describe('getOrGenerateCorrelationId', () => {
+    beforeEach(() => {
+      client['generateCorrelationId'] = jest.fn().mockReturnValue('test-id');
+    });
+    it('should generate and return a new correlation_id if none exists in the packet.', () => {
+      const packet = {};
+      const result = client['getOrGenerateCorrelationId'](packet);
+      expect(result.correlation_id).toBe('test-id');
+      expect(result.fromPacket).toBe(false);
+    });
+
+    it('should return the correlation_id from the headers if it exists', () => {
+      const packet = {
+        data: { correlation_id: 'existing-id' },
+      };
+      const result = client['getOrGenerateCorrelationId'](packet);
+      expect(result.correlation_id).toBe('existing-id');
+      expect(result.fromPacket).toBe(true);
+    });
+  });
+
   // describe('stream processing', () => {
   //   it('should handle stream messages correctly', async () => {
   //     const stream = 'test-stream';
