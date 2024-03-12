@@ -2,6 +2,8 @@ import { ReadPacket } from '@nestjs/microservices';
 import { RedisStreamClient } from '../../lib';
 import { ClientConstructorOptions } from '../../lib/interface/contructor.options.interface';
 import { RedisConnectionOptions } from '../../lib/interface/redis.interface';
+import { RedisStreamResponseDeserializer } from '../../lib/redis-stream.deserializer';
+import { RedisStreamRequestSerializer } from '../../lib/redis-stream.serializer';
 jest.mock('../../lib/redis', () => ({
   createRedisConnection: jest.fn().mockReturnValue({
     on: jest.fn(),
@@ -198,8 +200,6 @@ describe('RedisStreamClient', () => {
     });
   });
 
-  describe('handleCallback', () => {});
-
   describe('getOrGenerateCorrelationId', () => {
     beforeEach(() => {
       client['generateCorrelationId'] = jest.fn().mockReturnValue('test-id');
@@ -218,6 +218,67 @@ describe('RedisStreamClient', () => {
       const result = client['getOrGenerateCorrelationId'](packet);
       expect(result.correlation_id).toBe('existing-id');
       expect(result.fromPacket).toBe(true);
+    });
+  });
+
+  describe('initializeSerializer', () => {
+    it('should use the provided serializer if one is given', () => {
+      const customSerializer = { serialize: jest.fn() };
+      const options: ClientConstructorOptions = {
+        serialization: {
+          serializer: customSerializer,
+        },
+      } as any;
+
+      client['initializeSerializer'](options);
+      expect(client['serializer']).toBe(customSerializer);
+    });
+
+    it('should use the default RedisStreamRequestSerializer if no serializer is provided', () => {
+      const options: ClientConstructorOptions = {} as any;
+
+      const defaultSerializerSpy = jest.spyOn(
+        RedisStreamRequestSerializer.prototype,
+        'serialize',
+      );
+
+      client['initializeSerializer'](options);
+      expect(client['serializer']).toBeInstanceOf(RedisStreamRequestSerializer);
+      expect(client['serializer'].serialize).toBeDefined();
+      expect(defaultSerializerSpy).not.toHaveBeenCalled(); // Ensures method is not called, just checks instance
+      defaultSerializerSpy.mockRestore();
+    });
+  });
+
+  describe('initializeDeserializer', () => {
+    it('should use the provided deserializer if one is given', () => {
+      const customDeserializer = { deserialize: jest.fn() };
+      const options: ClientConstructorOptions = {
+        serialization: {
+          deserializer: customDeserializer,
+        },
+      } as any;
+
+      client['initializeDeserializer'](options);
+      expect(client['deserializer']).toBe(customDeserializer);
+    });
+
+    it('should use the default RedisStreamResponseDeserializer if no deserializer is provided', () => {
+      const options: ClientConstructorOptions = {} as any;
+
+      const defaultDeserializerSpy = jest.spyOn(
+        RedisStreamResponseDeserializer.prototype,
+        'deserialize',
+      );
+
+      client['initializeDeserializer'](options);
+      expect(client['deserializer']).toBeInstanceOf(
+        RedisStreamResponseDeserializer,
+      );
+      expect(client['deserializer'].deserialize).toBeDefined();
+      expect(defaultDeserializerSpy).not.toHaveBeenCalled();
+
+      defaultDeserializerSpy.mockRestore();
     });
   });
 
