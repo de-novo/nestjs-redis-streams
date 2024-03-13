@@ -44,7 +44,10 @@ export class RedisStreamServer
     isListener: boolean = false,
   ) {
     const redis = createRedisConnection(options.connection);
-    this.handleConnectionError(redis);
+    this.instanceErrorHandling(
+      redis,
+      isListener ? 'Redis Stream Server' : 'Redis Stream Client',
+    );
     redis.on(CONNECT_EVENT, () => {
       this.logger.log(
         `Connected to Redis ${isListener ? 'Server' : 'Client'} at ${options.connection?.path}`,
@@ -75,7 +78,7 @@ export class RedisStreamServer
         this.options.streams.consumerGroup,
       );
     } catch (e) {
-      this.handleErrorWithLogging('registerStream', e);
+      this.generatehandleError('registerStream')(e);
     }
   }
 
@@ -91,7 +94,7 @@ export class RedisStreamServer
         );
         return true;
       } else {
-        this.handleErrorWithLogging('createConsumerGroup', error);
+        this.generatehandleError('createConsumerGroup')(error);
         return false;
       }
     }
@@ -270,23 +273,18 @@ export class RedisStreamServer
   //////////////////////////////////////////
   // Error Handling
   //////////////////////////////////////////
-  public handleError(stream: any) {
-    stream.on(ERROR_EVENT, (err: any) => {
-      this.logger.error('Redis Streams Server ' + err);
-      this.close();
-    });
+  private instanceErrorHandling(
+    stream: RedisInstance,
+    context: string = 'Redis Stream Client',
+  ) {
+    stream.on(ERROR_EVENT, this.generatehandleError(context));
   }
 
-  handleConnectionError(client: RedisInstance) {
-    client.on(ERROR_EVENT, (err) => {
-      this.logger.error('Reids Error', err);
+  private generatehandleError(context: string) {
+    return (err: any) => {
+      this.logger.error(`${context}: ${err.message}`, err.stack);
       this.close();
-    });
-  }
-
-  private handleErrorWithLogging(context: string, error: any) {
-    this.logger.error(`${context}: ${error.message}`, error.stack);
-    this.close();
+    };
   }
 
   close() {
