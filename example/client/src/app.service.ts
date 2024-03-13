@@ -1,4 +1,4 @@
-import { RedisStreamClient } from '@de-novo/nestjs-reids-stream';
+import { RedisStreamClient } from '@de-novo/nestjs-redis-streams';
 import { Injectable } from '@nestjs/common';
 import { lastValueFrom } from 'rxjs';
 @Injectable()

@@ -1,4 +1,4 @@
-import { RedisStreamServer } from '@de-novo/nestjs-reids-stream';
+import { RedisStreamServer } from '@de-novo/nestjs-redis-streams';
 import { NestFactory } from '@nestjs/core';
 import { MicroserviceOptions } from '@nestjs/microservices';
 import { AppModule } from './app.module';

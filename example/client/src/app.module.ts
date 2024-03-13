@@ -1,4 +1,4 @@
-import { RedisStreamClientModule } from '@de-novo/nestjs-reids-stream';
+import { RedisStreamClientModule } from '@de-novo/nestjs-redis-streams';
 import { Module } from '@nestjs/common';
 
 import { AppController } from './app.controller';
