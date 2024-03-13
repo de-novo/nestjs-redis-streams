@@ -1,7 +1,7 @@
 import { DynamicModule, Module } from '@nestjs/common';
-import { ClientConstructorOptions } from '../interface/contructor.options.interface';
+import { RedisStreamModuleAsyncOptions } from '../interface/redis-stream.client.interface';
+import { ClientConstructorOptions } from '../interface/redis-stream.options.interface';
 import { RedisStreamClientCoreModule } from './redis-stream.client.core.module';
-import { RedisStreamModuleAsyncOptions } from './redis-stream.client.interface';
 
 @Module({})
 export class RedisStreamClientModule {

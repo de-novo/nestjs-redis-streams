@@ -1,10 +1,11 @@
 import { ReadPacket } from '@nestjs/microservices';
 import { RedisStreamClient } from '../../lib';
-import { ClientConstructorOptions } from '../../lib/interface/contructor.options.interface';
-import { RedisConnectionOptions } from '../../lib/interface/redis.interface';
-import { RedisStreamResponseDeserializer } from '../../lib/redis-stream.deserializer';
-import { RedisStreamRequestSerializer } from '../../lib/redis-stream.serializer';
-jest.mock('../../lib/redis', () => ({
+import { RedisConnectionOptions } from '../../lib/interface/redis-stream.interface';
+import { ClientConstructorOptions } from '../../lib/interface/redis-stream.options.interface';
+import { RedisStreamResponseDeserializer } from '../../lib/serialization/redis-stream.deserializer';
+import { RedisStreamRequestSerializer } from '../../lib/serialization/redis-stream.serializer';
+
+jest.mock('../../lib/util/redisConnection', () => ({
   createRedisConnection: jest.fn().mockReturnValue({
     on: jest.fn(),
     once: jest.fn(),

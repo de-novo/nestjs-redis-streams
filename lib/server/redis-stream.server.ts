@@ -4,15 +4,15 @@ import { CONNECT_EVENT, ERROR_EVENT } from '@nestjs/microservices/constants';
 import { Observable } from 'rxjs';
 import { REDIST_STREAM } from '../contants';
 import { RedisStreamContext } from '../context/redis-stream.context';
-import { ServerConstructorOptions } from '../interface/contructor.options.interface';
 import {
   RedisInstance,
   StreamResponse,
   StreamResponseObject,
-} from '../interface/redis.interface';
-import { createRedisConnection } from '../redis';
-import { RedisStreamResponseDeserializer } from '../redis-stream.deserializer';
-import { RedisStreamRequestSerializer } from '../redis-stream.serializer';
+} from '../interface/redis-stream.interface';
+import { ServerConstructorOptions } from '../interface/redis-stream.options.interface';
+import { RedisStreamResponseDeserializer } from '../serialization/redis-stream.deserializer';
+import { RedisStreamRequestSerializer } from '../serialization/redis-stream.serializer';
+import { createRedisConnection } from '../util/redisConnection';
 
 export class RedisStreamServer
   extends Server

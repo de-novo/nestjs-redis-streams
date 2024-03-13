@@ -1,5 +1,5 @@
 import { ModuleMetadata, Type } from '@nestjs/common';
-import { ClientConstructorOptions } from '../interface/contructor.options.interface';
+import { ClientConstructorOptions } from './redis-stream.options.interface';
 
 export interface RedisStreamClientModuleOptionsFactory {
   createRedisStreamClientModuleOptions():
