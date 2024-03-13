@@ -77,8 +77,10 @@ export class RedisStreamServer
         pattern,
         this.options.streams.consumerGroup,
       );
+      return true;
     } catch (e) {
       this.generatehandleError('registerStream')(e);
+      return false;
     }
   }
 
@@ -173,7 +175,7 @@ export class RedisStreamServer
   ): Promise<void> {
     const stageRespondBack = async (resObj: any) => {
       resObj.inboundContext = ctx;
-      this.handleRepondBack(resObj);
+      this.handleRespondBack(resObj);
     };
     if (response$) {
       this.send(response$, stageRespondBack);
@@ -183,7 +185,7 @@ export class RedisStreamServer
   //////////////////////////////////////////
   // response handling
   //////////////////////////////////////////
-  private async handleRepondBack({
+  private async handleRespondBack({
     response,
     inboundContext,
   }: {
@@ -201,8 +203,10 @@ export class RedisStreamServer
         throw new Error('Failed to publish response');
       }
       await this.handleAck(inboundContext);
+      return true;
     } catch (e) {
       this.logger.error('handleRepondBack', e);
+      return false;
     }
   }
 
