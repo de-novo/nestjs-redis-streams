@@ -20,36 +20,40 @@ export class RedisStreamServer
 {
   logger = new Logger(RedisStreamServer.name);
   private readonly transportID = REDIST_STREAM;
-
   private streamHandlerMap: Record<string, any> = {};
   private redis?: RedisInstance;
   private client?: RedisInstance;
+
   constructor(private readonly options: ServerConstructorOptions) {
     super();
     this.initializeSerializer(options);
     this.initializeDeserializer(options);
   }
-
+  //////////////////////////////////////////
+  // connect and stream handlers
+  //////////////////////////////////////////
   public async listen(callback: () => void) {
-    this.redis = createRedisConnection(this.options.connection);
-    this.client = createRedisConnection(this.options.connection);
-    this.handleConnectionError(this.redis);
-    this.handleConnectionError(this.client);
-    this.redis.on(CONNECT_EVENT, () => {
-      this.logger.log(
-        'Connected to Redis Server',
-        this.options.connection?.path,
-      );
-    });
-    this.client.on(CONNECT_EVENT, () => {
-      this.logger.log(
-        'Connected to Redis client',
-        this.options.connection?.path,
-      );
-    });
+    this.redis = await this.initializeRedis(this.options, true);
+    this.client = await this.initializeRedis(this.options);
     this.bindHandlers();
-
     callback();
+  }
+
+  private async initializeRedis(
+    options: ServerConstructorOptions,
+    isListener: boolean = false,
+  ) {
+    const redis = createRedisConnection(options.connection);
+    this.instanceErrorHandling(
+      redis,
+      isListener ? 'Redis Stream Server' : 'Redis Stream Client',
+    );
+    redis.on(CONNECT_EVENT, () => {
+      this.logger.log(
+        `Connected to Redis ${isListener ? 'Server' : 'Client'} at ${options.connection?.path}`,
+      );
+    });
+    return redis;
   }
 
   async bindHandlers() {
@@ -59,28 +63,50 @@ export class RedisStreamServer
           await this.registerStream(pattern);
         }),
       );
-      this.listenOnStream();
+      this.listenOnStreams();
     } catch (e) {
       this.logger.error('bindHandlers', e);
       throw e;
     }
   }
 
-  public handleError(stream: any) {
-    stream.on(ERROR_EVENT, (err: any) => {
-      this.logger.error('Redis Streams Server ' + err);
-      this.close();
-    });
+  private async registerStream(pattern: string) {
+    try {
+      this.streamHandlerMap[pattern] = this.messageHandlers.get(pattern);
+      await this.createConsumerGroup(
+        pattern,
+        this.options.streams.consumerGroup,
+      );
+    } catch (e) {
+      this.generatehandleError('registerStream')(e);
+    }
   }
 
-  private async listenOnStream(): Promise<void> {
+  private async createConsumerGroup(stream: string, group: string) {
+    if (!this.redis) return;
+    try {
+      await this.redis.xgroup('CREATE', stream, group, '$', 'MKSTREAM');
+      return true;
+    } catch (error: any) {
+      if (error?.message && error.message.includes('BUSYGROUP')) {
+        this.logger.debug(
+          'Consumer Group "' + group + '" already exists for stream: ' + stream,
+        );
+        return true;
+      } else {
+        this.generatehandleError('createConsumerGroup')(error);
+        return false;
+      }
+    }
+  }
+
+  private async listenOnStreams(testMode = false): Promise<void | boolean> {
     if (!this.redis) return;
     const consumerGroup = this.options.streams.consumerGroup;
     const consumer = this.options.streams.consumer;
     if (!consumerGroup || !consumer) {
       throw new Error('Consumer Group and Consumer must be defined');
     }
-
     const groups =
       (await this.redis.xreadgroup(
         'GROUP',
@@ -92,13 +118,13 @@ export class RedisStreamServer
         ...(Object.keys(this.streamHandlerMap) as string[]), // streams keys
         ...(Object.keys(this.streamHandlerMap) as string[]).map(() => '>'),
       )) || [];
-
     groups.forEach((group: any) => {
       const [stream, messages] = group;
       this.notifyHandler(stream, messages);
     });
-    return this.listenOnStream();
+    return testMode || this.listenOnStreams();
   }
+
   private async notifyHandler(stream: string, messages: any[]) {
     try {
       const handler = this.streamHandlerMap[stream];
@@ -106,30 +132,57 @@ export class RedisStreamServer
       const consumerGroup = this.options.streams.consumerGroup;
       await Promise.all(
         messages.map(async (message) => {
-          const [streamKey] = message;
-          const ctx = new RedisStreamContext([
+          const ctx = this.createContext(
             stream,
-            streamKey,
+            message,
             consumerGroup,
             consumer,
-          ]);
-          const parsedPayload = this.deserializer.deserialize(message, ctx);
-          const stageRespondBack = async (resObj: any) => {
-            resObj.inboundContext = ctx;
-            this.handleRepondBack(resObj);
-          };
-
-          const response$ = this.transformToObservable(
-            await handler(parsedPayload, ctx),
-          ) as Observable<any>;
-
-          response$ && this.send(response$, stageRespondBack);
+          );
+          const response$ = await this.processMessage(handler, message, ctx);
+          await this.sendResponse(response$, ctx);
         }),
       );
     } catch (e) {
       this.logger.error('server notifyHandler', e);
     }
   }
+
+  private createContext(
+    stream: string,
+    message: any[],
+    consumerGroup: string,
+    consumer: string,
+  ) {
+    const [streamKey] = message;
+    return new RedisStreamContext([stream, streamKey, consumerGroup, consumer]);
+  }
+
+  private async processMessage(
+    handler: any,
+    message: any,
+    ctx: RedisStreamContext,
+  ) {
+    const parsedPayload = this.deserializer.deserialize(message, ctx);
+    const response = await handler(parsedPayload, ctx);
+    return this.transformToObservable(response);
+  }
+
+  private async sendResponse(
+    response$: Observable<any>,
+    ctx: RedisStreamContext,
+  ): Promise<void> {
+    const stageRespondBack = async (resObj: any) => {
+      resObj.inboundContext = ctx;
+      this.handleRepondBack(resObj);
+    };
+    if (response$) {
+      this.send(response$, stageRespondBack);
+    }
+  }
+
+  //////////////////////////////////////////
+  // response handling
+  //////////////////////////////////////////
   private async handleRepondBack({
     response,
     inboundContext,
@@ -140,7 +193,6 @@ export class RedisStreamServer
   }) {
     try {
       if (!this.redis) return;
-
       const publishedResponse = await this.publishResponses(
         response,
         inboundContext,
@@ -153,40 +205,32 @@ export class RedisStreamServer
       this.logger.error('handleRepondBack', e);
     }
   }
+
   private async publishResponses(
     responses: StreamResponse,
     inboundContext: RedisStreamContext,
   ) {
-    if (responses === true || !!!responses) return true;
+    if (!responses || responses === true) return true;
     if (!this.client) return false;
-    inboundContext;
-    if (Array.isArray(responses)) {
-      await Promise.all(
-        responses.map(async (response: StreamResponseObject) => {
-          if (!response.payload) return;
-          if (!response.stream) return;
-          if (!this.client) return;
-          const serializedEntries = await this.serializer.serialize(
-            { ...response.payload, id: '' }, // id: '' is a temporary fix
-            inboundContext,
-          );
-          await this.client.xadd(response.stream, '*', ...serializedEntries);
-        }),
-      );
-      return true;
-    }
+    const responseArray = Array.isArray(responses) ? responses : [responses];
+    await Promise.all(
+      responseArray.map(async (response: StreamResponseObject) => {
+        return this.handleResponse(response, inboundContext);
+      }),
+    );
+    return true;
+  }
 
-    if (typeof responses === 'object') {
-      if (!responses.payload) return;
-      if (!responses.stream) return;
-      if (!this.client) return;
-      const serializedEntries = await this.serializer.serialize(
-        { ...responses.payload, id: '' }, // id: '' is a temporary fix
-        inboundContext,
-      );
-      await this.client.xadd(responses.stream, '*', ...serializedEntries);
-      return true;
-    }
+  private async handleResponse(
+    response: StreamResponseObject,
+    inboundContext: RedisStreamContext,
+  ) {
+    if (!response.payload || !response.payload || !this.client) return false;
+    const serializedEntries = await this.serializer.serialize(
+      { ...response.payload, id: '' }, // id: '' is a temporary fix
+      inboundContext,
+    );
+    await this.client.xadd(response.stream, '*', ...serializedEntries);
     return true;
   }
 
@@ -211,44 +255,9 @@ export class RedisStreamServer
     }
   }
 
-  private async registerStream(pattern: string) {
-    try {
-      this.streamHandlerMap[pattern] = this.messageHandlers.get(pattern);
-
-      await this.createConsumerGroup(
-        pattern,
-        this.options.streams.consumerGroup,
-      );
-    } catch (e) {
-      this.handleErrorWithLogging('registerStream', e);
-    }
-  }
-
-  private async createConsumerGroup(stream: string, group: string) {
-    if (!this.redis) return;
-    try {
-      await this.redis.xgroup('CREATE', stream, group, '$', 'MKSTREAM');
-      return true;
-    } catch (error: any) {
-      if (error?.message && error.message.includes('BUSYGROUP')) {
-        this.logger.debug(
-          'Consumer Group "' + group + '" already exists for stream: ' + stream,
-        );
-        return true;
-      } else {
-        this.handleErrorWithLogging('createConsumerGroup', error);
-        return false;
-      }
-    }
-  }
-
-  handleConnectionError(client: RedisInstance) {
-    client.on(ERROR_EVENT, (err) => {
-      this.logger.error('Reids Error', err);
-      this.close();
-    });
-  }
-
+  //////////////////////////////////////////
+  // serialization and deserialization initialization
+  //////////////////////////////////////////
   protected initializeSerializer(options: ServerConstructorOptions) {
     this.serializer =
       (options && options.serialization?.serializer) ||
@@ -260,9 +269,22 @@ export class RedisStreamServer
       (options && options.serialization?.deserializer) ||
       new RedisStreamResponseDeserializer();
   }
-  private handleErrorWithLogging(context: string, error: any) {
-    this.logger.error(`${context}: ${error.message}`, error.stack);
-    this.close();
+
+  //////////////////////////////////////////
+  // Error Handling
+  //////////////////////////////////////////
+  private instanceErrorHandling(
+    stream: RedisInstance,
+    context: string = 'Redis Stream Client',
+  ) {
+    stream.on(ERROR_EVENT, this.generatehandleError(context));
+  }
+
+  private generatehandleError(context: string) {
+    return (err: any) => {
+      this.logger.error(`${context}: ${err.message}`, err.stack);
+      this.close();
+    };
   }
 
   close() {

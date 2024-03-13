@@ -250,7 +250,6 @@ export class RedisStreamClient extends ClientProxy {
         );
         return true;
       } else {
-        // this.handleErrorWithLogging('createConsumerGroup', error);
         this.generatehandleError('createConsumerGroup')(error);
         return false;
       }
