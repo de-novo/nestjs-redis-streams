@@ -212,4 +212,95 @@ describe('Redis Stream Server', () => {
       expect(result).toBeFalsy();
     });
   });
+
+  describe('listenOnStreams', () => {
+    let xreadgroupMock: jest.Mock;
+    let notifyHandlerMock: jest.Mock;
+    let streamHandlerMapMock: Record<string, jest.Mock>;
+    beforeEach(() => {
+      xreadgroupMock = jest.fn();
+      notifyHandlerMock = jest.fn();
+      streamHandlerMapMock = {};
+
+      server['streamHandlerMap'] = streamHandlerMapMock;
+      server['redis'] = {
+        xreadgroup: xreadgroupMock,
+      } as any;
+      server['notifyHandler'] = notifyHandlerMock;
+    });
+
+    afterEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('ensures xreadgroup is invoked with proper parameters if streamHandlerMap lacks entries', async () => {
+      await server['listenOnStreams'](true);
+      expect(xreadgroupMock).toHaveBeenCalledTimes(1);
+      expect(xreadgroupMock).toHaveBeenCalledWith(
+        'GROUP',
+        options.streams.consumerGroup,
+        options.streams.consumer,
+        'BLOCK',
+        options.streams.block,
+        'STREAMS',
+      );
+    });
+
+    it('ensures xreadgroup is invoked with proper parameters if streamHandlerMap has entries', async () => {
+      streamHandlerMapMock = {
+        test: jest.fn(),
+      };
+
+      server['streamHandlerMap'] = streamHandlerMapMock;
+      await server['listenOnStreams'](true);
+
+      expect(xreadgroupMock).toHaveBeenCalledTimes(1);
+      expect(xreadgroupMock).toHaveBeenCalledWith(
+        'GROUP',
+        options.streams.consumerGroup,
+        options.streams.consumer,
+        'BLOCK',
+        options.streams.block,
+        'STREAMS',
+        'test',
+        '>',
+      );
+    });
+
+    it('ensures xreadgroup is invoked with proper parameters if streamHandlerMap has multiple entries', async () => {
+      streamHandlerMapMock = {
+        test: jest.fn(),
+        test2: jest.fn(),
+      };
+
+      server['streamHandlerMap'] = streamHandlerMapMock;
+      await server['listenOnStreams'](true);
+
+      expect(xreadgroupMock).toHaveBeenCalledTimes(1);
+      expect(xreadgroupMock).toHaveBeenCalledWith(
+        'GROUP',
+        options.streams.consumerGroup,
+        options.streams.consumer,
+        'BLOCK',
+        options.streams.block,
+        'STREAMS',
+        'test',
+        'test2',
+        '>',
+        '>',
+      );
+    });
+
+    it('should execute notifyHandler for each result from xreadgroup', async () => {
+      xreadgroupMock.mockResolvedValue([
+        ['test', [{ test: 'test' }]],
+        ['test2', [{ test: 'test' }]],
+      ]);
+      server['redis'] = {
+        xreadgroup: xreadgroupMock,
+      } as any;
+      await server['listenOnStreams'](true);
+      expect(notifyHandlerMock).toHaveBeenCalledTimes(2);
+    });
+  });
 });
