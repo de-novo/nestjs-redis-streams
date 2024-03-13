@@ -13,6 +13,7 @@ export class AppService {
     const res = await lastValueFrom(
       this.redisStreamClient.send('test.send', {
         value: { test: 'test' },
+        headers: { a: 'a' },
       }),
     );
     return res;
