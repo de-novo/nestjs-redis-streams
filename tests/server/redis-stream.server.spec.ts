@@ -303,4 +303,31 @@ describe('Redis Stream Server', () => {
       expect(notifyHandlerMock).toHaveBeenCalledTimes(2);
     });
   });
+
+  describe('notifyHandler', () => {
+    let processMessageMock: jest.Mock;
+    let sendResponseMock: jest.Mock;
+    beforeEach(() => {
+      processMessageMock = jest.fn();
+      sendResponseMock = jest.fn();
+
+      server['processMessage'] = processMessageMock;
+      server['sendResponse'] = sendResponseMock;
+    });
+
+    it('should call processMessage and sendResponse for each message', async () => {
+      const message = ['stream_key', ['test']];
+      const stream = 'test';
+      await server['notifyHandler'](stream, [message]);
+      expect(processMessageMock).toHaveBeenCalledTimes(1);
+      expect(sendResponseMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('should catch and log any errors', async () => {
+      processMessageMock.mockRejectedValue(new Error('test'));
+      await server['notifyHandler']('test', [['test']]);
+      expect(processMessageMock).toHaveBeenCalledTimes(1);
+      expect(sendResponseMock).not.toHaveBeenCalled();
+    });
+  });
 });
