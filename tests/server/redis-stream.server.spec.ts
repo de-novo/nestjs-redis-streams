@@ -1,5 +1,10 @@
+import { Observable } from 'rxjs';
 import { RedisStreamServer } from '../../lib';
-import { RedisConnectionOptions } from '../../lib/interface/redis-stream.interface';
+import { RedisStreamContext } from '../../lib/context/redis-stream.context';
+import {
+  RedisConnectionOptions,
+  StreamResponse,
+} from '../../lib/interface/redis-stream.interface';
 import { ServerConstructorOptions } from '../../lib/interface/redis-stream.options.interface';
 
 jest.mock('../../lib/util/redisConnection', () => ({
@@ -328,6 +333,58 @@ describe('Redis Stream Server', () => {
       await server['notifyHandler']('test', [['test']]);
       expect(processMessageMock).toHaveBeenCalledTimes(1);
       expect(sendResponseMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('sendResponse', () => {
+    let response$Mock: Observable<any>;
+    let ctxMock: RedisStreamContext;
+    let sendMock: jest.Mock;
+    beforeEach(() => {
+      response$Mock = new Observable();
+      ctxMock = new RedisStreamContext(['test', 'test', 'test', 'test']);
+      sendMock = jest.fn();
+      server['send'] = sendMock;
+    });
+
+    it('should call send with the correct arguments', async () => {
+      await server['sendResponse'](response$Mock, ctxMock);
+      expect(sendMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('handleRespondBack', () => {
+    let response: StreamResponse;
+    let inboundContext: RedisStreamContext;
+    let publishResponsesMock: jest.Mock;
+    let handleAckMock: jest.Mock;
+    beforeEach(() => {
+      response = null;
+      inboundContext = new RedisStreamContext(['test', 'test', 'test', 'test']);
+      handleAckMock = jest.fn();
+      publishResponsesMock = jest.fn().mockResolvedValue(true);
+      server['handleAck'] = handleAckMock;
+      server['publishResponses'] = publishResponsesMock;
+      server['redis'] = {} as any;
+    });
+    it('should call publishResponses and handleAck with the correct arguments', async () => {
+      await server['handleRepondBack']({
+        response,
+        inboundContext,
+        insDisposed: false,
+      });
+      expect(publishResponsesMock).toHaveBeenCalledTimes(1);
+      expect(handleAckMock).toHaveBeenCalledTimes(1);
+    });
+    it('should return false if publishResponses fails', async () => {
+      publishResponsesMock = jest.fn().mockResolvedValue(false);
+      server['publishResponses'] = publishResponsesMock;
+      const result = await server['handleRepondBack']({
+        response,
+        inboundContext,
+        insDisposed: false,
+      });
+      expect(result).toBeFalsy();
     });
   });
 });
