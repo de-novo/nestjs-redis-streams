@@ -57,4 +57,84 @@ describe('Redis Stream Server', () => {
       expect(bindHandlersMock).toHaveBeenCalled();
     });
   });
+
+  describe('initializeRedis', () => {
+    it('should return Redis Instance', async () => {
+      const redis = await server['initializeRedis'](options);
+      expect(redis).toBeDefined();
+    });
+  });
+
+  describe('bindHandlers', () => {
+    let messageHandlersMock: Map<string, jest.Mock>;
+    let registerStreamMock: jest.Mock;
+    let listenOnStreamsMock: jest.Mock;
+
+    beforeEach(() => {
+      messageHandlersMock = new Map();
+      registerStreamMock = jest.fn();
+      listenOnStreamsMock = jest.fn();
+
+      server['listenOnStreams'] = listenOnStreamsMock;
+    });
+
+    afterEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should register the stream', async () => {
+      messageHandlersMock.set('test', jest.fn());
+
+      server['registerStream'] = registerStreamMock;
+      (server as any)['messageHandlers'] = messageHandlersMock;
+
+      await server['bindHandlers']();
+      expect(registerStreamMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('should be able to register multiple streams', async () => {
+      messageHandlersMock.set('test', jest.fn());
+      messageHandlersMock.set('test2', jest.fn());
+
+      server['registerStream'] = registerStreamMock;
+      (server as any)['messageHandlers'] = messageHandlersMock;
+
+      await server['bindHandlers']();
+      expect(registerStreamMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('should listen on the streams', async () => {
+      messageHandlersMock.set('test', jest.fn());
+
+      (server as any)['messageHandlers'] = messageHandlersMock;
+
+      await server['bindHandlers']();
+      expect(listenOnStreamsMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('should call createConsumerGroup with the correct arguments', async () => {
+      messageHandlersMock.set('createConsumerGroup', jest.fn());
+      const createConsumerGroupMock = jest.fn();
+
+      server['createConsumerGroup'] = createConsumerGroupMock;
+      (server as any)['messageHandlers'] = messageHandlersMock;
+
+      await server['bindHandlers']();
+      expect(createConsumerGroupMock).toHaveBeenCalledWith(
+        'createConsumerGroup',
+        'testGroup',
+      );
+    });
+
+    it('should throw an error if there is an error', async () => {
+      messageHandlersMock.set('test', jest.fn());
+      const listenOnStreamsMock = jest.fn();
+
+      server['registerStream'] = jest.fn().mockRejectedValue(new Error('test'));
+      server['listenOnStreams'] = listenOnStreamsMock;
+      (server as any)['messageHandlers'] = messageHandlersMock;
+
+      await expect(server['bindHandlers']()).rejects.toThrow('test');
+    });
+  });
 });
