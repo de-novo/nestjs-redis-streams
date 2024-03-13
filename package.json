@@ -20,7 +20,11 @@
     "prerelease": "npm run build",
     "release": "release-it",
     "prepare": "husky install",
-    "lint-staged": "lint-staged"
+    "lint-staged": "lint-staged",
+    "example:client": "cd example/client && npm install && npm run start:dev",
+    "example:microservice": "cd example/microservice && npm install && npm run start:dev",
+    "redis:docker": "docker-compose up -d",
+    "redis:docker:down": "docker-compose down"
   },
   "dependencies": {
     "ioredis": "^5.2.3",
