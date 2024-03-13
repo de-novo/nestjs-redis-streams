@@ -7,6 +7,7 @@ package-lock.json
 tslint.json
 tsconfig.json
 .prettierrc
+coverage
 
 # github
 .github
@@ -20,3 +21,4 @@ renovate.json
 .eslintrc.js
 docker-compose.yml
 .circleci/
+
