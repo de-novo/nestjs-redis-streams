@@ -137,4 +137,33 @@ describe('Redis Stream Server', () => {
       await expect(server['bindHandlers']()).rejects.toThrow('test');
     });
   });
+
+  describe('registerStream', () => {
+    let createConsumerGroupMock: jest.Mock;
+    let streamHandlerMap: Map<string, jest.Mock>;
+    beforeEach(() => {
+      createConsumerGroupMock = jest.fn();
+      server['createConsumerGroup'] = createConsumerGroupMock;
+
+      streamHandlerMap = new Map();
+      streamHandlerMap.set('test', jest.fn());
+      (server as any)['streamHandlerMap'] = streamHandlerMap;
+    });
+
+    afterEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should call createConsumerGroup with the correct arguments', async () => {
+      await server['registerStream']('test');
+      expect(streamHandlerMap.get('test')).toBeDefined();
+      expect(createConsumerGroupMock).toHaveBeenCalledWith('test', 'testGroup');
+    });
+
+    it('if error, should return false', async () => {
+      createConsumerGroupMock.mockRejectedValue(new Error('test'));
+      const result = await server['registerStream']('test');
+      expect(result).toBeFalsy();
+    });
+  });
 });

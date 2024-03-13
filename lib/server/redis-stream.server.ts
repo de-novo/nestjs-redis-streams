@@ -77,8 +77,10 @@ export class RedisStreamServer
         pattern,
         this.options.streams.consumerGroup,
       );
+      return true;
     } catch (e) {
       this.generatehandleError('registerStream')(e);
+      return false;
     }
   }
 
