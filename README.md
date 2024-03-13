@@ -12,7 +12,7 @@
 <div align="center">
 
 ![NPM Version](https://img.shields.io/npm/v/%40de-novo%2Fnestjs-redis-streams?color=green)
-![NPM Downloads](https://img.shields.io/npm/dt/%40de-novo%2Fnestjs-redis-streams)
+![NPM Downloads](https://img.shields.io/npm/dt/@de-novo/nestjs-redis-streams)
 ![GitHub Issues or Pull Requests](https://img.shields.io/github/issues/de-novo/nestjs-redis-streams)
 
 </div>
