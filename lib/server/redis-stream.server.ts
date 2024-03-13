@@ -60,7 +60,7 @@ export class RedisStreamServer
           await this.registerStream(pattern);
         }),
       );
-      this.listenOnStream();
+      this.listenOnStreams();
     } catch (e) {
       this.logger.error('bindHandlers', e);
       throw e;
@@ -70,7 +70,6 @@ export class RedisStreamServer
   private async registerStream(pattern: string) {
     try {
       this.streamHandlerMap[pattern] = this.messageHandlers.get(pattern);
-
       await this.createConsumerGroup(
         pattern,
         this.options.streams.consumerGroup,
@@ -98,14 +97,13 @@ export class RedisStreamServer
     }
   }
 
-  private async listenOnStream(): Promise<void> {
+  private async listenOnStreams(testMode = false): Promise<void | boolean> {
     if (!this.redis) return;
     const consumerGroup = this.options.streams.consumerGroup;
     const consumer = this.options.streams.consumer;
     if (!consumerGroup || !consumer) {
       throw new Error('Consumer Group and Consumer must be defined');
     }
-
     const groups =
       (await this.redis.xreadgroup(
         'GROUP',
@@ -117,12 +115,11 @@ export class RedisStreamServer
         ...(Object.keys(this.streamHandlerMap) as string[]), // streams keys
         ...(Object.keys(this.streamHandlerMap) as string[]).map(() => '>'),
       )) || [];
-
     groups.forEach((group: any) => {
       const [stream, messages] = group;
       this.notifyHandler(stream, messages);
     });
-    return this.listenOnStream();
+    return testMode || this.listenOnStreams();
   }
 
   private async notifyHandler(stream: string, messages: any[]) {
@@ -132,28 +129,51 @@ export class RedisStreamServer
       const consumerGroup = this.options.streams.consumerGroup;
       await Promise.all(
         messages.map(async (message) => {
-          const [streamKey] = message;
-          const ctx = new RedisStreamContext([
+          const ctx = this.createContext(
             stream,
-            streamKey,
+            message,
             consumerGroup,
             consumer,
-          ]);
-          const parsedPayload = this.deserializer.deserialize(message, ctx);
-          const stageRespondBack = async (resObj: any) => {
-            resObj.inboundContext = ctx;
-            this.handleRepondBack(resObj);
-          };
-
-          const response$ = this.transformToObservable(
-            await handler(parsedPayload, ctx),
-          ) as Observable<any>;
-
-          response$ && this.send(response$, stageRespondBack);
+          );
+          const response$ = await this.processMessage(handler, message, ctx);
+          await this.sendResponse(response$, ctx);
         }),
       );
     } catch (e) {
       this.logger.error('server notifyHandler', e);
+    }
+  }
+
+  private createContext(
+    stream: string,
+    message: any[],
+    consumerGroup: string,
+    consumer: string,
+  ) {
+    const [streamKey] = message;
+    return new RedisStreamContext([stream, streamKey, consumerGroup, consumer]);
+  }
+
+  private async processMessage(
+    handler: any,
+    message: any,
+    ctx: RedisStreamContext,
+  ) {
+    const parsedPayload = this.deserializer.deserialize(message, ctx);
+    const response = await handler(parsedPayload, ctx);
+    return this.transformToObservable(response);
+  }
+
+  private async sendResponse(
+    response$: Observable<any>,
+    ctx: RedisStreamContext,
+  ): Promise<void> {
+    const stageRespondBack = async (resObj: any) => {
+      resObj.inboundContext = ctx;
+      this.handleRepondBack(resObj);
+    };
+    if (response$) {
+      this.send(response$, stageRespondBack);
     }
   }
 
@@ -170,7 +190,6 @@ export class RedisStreamServer
   }) {
     try {
       if (!this.redis) return;
-
       const publishedResponse = await this.publishResponses(
         response,
         inboundContext,
@@ -188,36 +207,27 @@ export class RedisStreamServer
     responses: StreamResponse,
     inboundContext: RedisStreamContext,
   ) {
-    if (responses === true || !!!responses) return true;
+    if (!responses || responses === true) return true;
     if (!this.client) return false;
-    inboundContext;
-    if (Array.isArray(responses)) {
-      await Promise.all(
-        responses.map(async (response: StreamResponseObject) => {
-          if (!response.payload) return;
-          if (!response.stream) return;
-          if (!this.client) return;
-          const serializedEntries = await this.serializer.serialize(
-            { ...response.payload, id: '' }, // id: '' is a temporary fix
-            inboundContext,
-          );
-          await this.client.xadd(response.stream, '*', ...serializedEntries);
-        }),
-      );
-      return true;
-    }
+    const responseArray = Array.isArray(responses) ? responses : [responses];
+    await Promise.all(
+      responseArray.map(async (response: StreamResponseObject) => {
+        return this.handleResponse(response, inboundContext);
+      }),
+    );
+    return true;
+  }
 
-    if (typeof responses === 'object') {
-      if (!responses.payload) return;
-      if (!responses.stream) return;
-      if (!this.client) return;
-      const serializedEntries = await this.serializer.serialize(
-        { ...responses.payload, id: '' }, // id: '' is a temporary fix
-        inboundContext,
-      );
-      await this.client.xadd(responses.stream, '*', ...serializedEntries);
-      return true;
-    }
+  private async handleResponse(
+    response: StreamResponseObject,
+    inboundContext: RedisStreamContext,
+  ) {
+    if (!response.payload || !response.payload || !this.client) return false;
+    const serializedEntries = await this.serializer.serialize(
+      { ...response.payload, id: '' }, // id: '' is a temporary fix
+      inboundContext,
+    );
+    await this.client.xadd(response.stream, '*', ...serializedEntries);
     return true;
   }
 
