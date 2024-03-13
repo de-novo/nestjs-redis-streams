@@ -368,7 +368,7 @@ describe('Redis Stream Server', () => {
       server['redis'] = {} as any;
     });
     it('should call publishResponses and handleAck with the correct arguments', async () => {
-      await server['handleRepondBack']({
+      await server['handleRespondBack']({
         response,
         inboundContext,
         insDisposed: false,
@@ -379,11 +379,70 @@ describe('Redis Stream Server', () => {
     it('should return false if publishResponses fails', async () => {
       publishResponsesMock = jest.fn().mockResolvedValue(false);
       server['publishResponses'] = publishResponsesMock;
-      const result = await server['handleRepondBack']({
+      const result = await server['handleRespondBack']({
         response,
         inboundContext,
         insDisposed: false,
       });
+      expect(result).toBeFalsy();
+    });
+  });
+
+  describe('publishResponses', () => {
+    let responses: StreamResponse;
+    let inboundContext: RedisStreamContext;
+    beforeEach(() => {
+      responses = null;
+      inboundContext = new RedisStreamContext(['test', 'test', 'test', 'test']);
+      server['redis'] = {} as any;
+      server['client'] = {} as any;
+      server['handleResponse'] = jest.fn().mockResolvedValue(true);
+    });
+    it('should return true if responses is null', async () => {
+      const result = await server['publishResponses'](
+        responses,
+        inboundContext,
+      );
+      expect(result).toBeTruthy();
+    });
+    it('should return true if responses is true', async () => {
+      responses = true;
+      const result = await server['publishResponses'](
+        responses,
+        inboundContext,
+      );
+      expect(result).toBeTruthy();
+    });
+    it('should return true if responses is an array', async () => {
+      responses = [] as StreamResponse;
+      const result = await server['publishResponses'](
+        responses,
+        inboundContext,
+      );
+      expect(result).toBeTruthy();
+    });
+    it('should return true if responses is an object', async () => {
+      responses = {
+        payload: {
+          headers: {},
+          value: {},
+        },
+        stream: 'test',
+      };
+      const result = await server['publishResponses'](
+        responses,
+        inboundContext,
+      );
+      expect(result).toBeTruthy();
+    });
+
+    it('should return false if client is undefined', async () => {
+      server['client'] = undefined;
+      responses = [] as StreamResponse;
+      const result = await server['publishResponses'](
+        responses,
+        inboundContext,
+      );
       expect(result).toBeFalsy();
     });
   });
