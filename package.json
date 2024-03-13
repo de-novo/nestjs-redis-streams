@@ -1,6 +1,6 @@
 {
-  "name": "@de-novo/nestjs-redis-stream",
-  "version": "0.0.2",
+  "name": "@de-novo/nestjs-redis-streams",
+  "version": "0.0.1",
   "description": "",
   "author": "de-novo",
   "license": "MIT",
@@ -10,12 +10,12 @@
     "nestjs",
     "ioredis",
     "redis",
-    "stream",
-    "redis stream",
-    "redis stream transport",
+    "streams",
+    "redis streams",
+    "redis streams transport",
     "microservice",
-    "nestjs redis stream",
-    "nestjs redis stream transport"
+    "nestjs redis streams",
+    "nestjs redis streams transport"
   ],
   "private": false,
   "main": "dist/index.js",

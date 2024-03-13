@@ -1,3 +1,5 @@
+# @de-novo/nestjs-redis-streams
+
 <p align="center">
   <a href="http://nestjs.com/" target="blank">
     <img src="https://nestjs.com/img/logo_text.svg" width="320" alt="Nest Logo" />
@@ -9,9 +11,9 @@
 </h3>
 <div align="center">
 
-![NPM Version](https://img.shields.io/npm/v/%40de-novo%2Fnestjs-redis-stream?color=green)
-![NPM Downloads](https://img.shields.io/npm/dt/%40de-novo%2Fnestjs-redis-stream)
-![GitHub Issues or Pull Requests](https://img.shields.io/github/issues/de-novo/nestjs-redis-stream)
+![NPM Version](https://img.shields.io/npm/v/%40de-novo%2Fnestjs-redis-streams?color=green)
+![NPM Downloads](https://img.shields.io/npm/dt/%40de-novo%2Fnestjs-redis-streams)
+![GitHub Issues or Pull Requests](https://img.shields.io/github/issues/de-novo/nestjs-redis-streams)
 
 </div>
 
