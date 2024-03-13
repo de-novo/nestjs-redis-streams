@@ -1,4 +1,4 @@
-import { createRedisConnection } from '../../lib/redis';
+import { createRedisConnection } from '../../lib/util/redisConnection';
 
 jest.mock('ioredis', () => {
   // 모킹된 Redis 클래스

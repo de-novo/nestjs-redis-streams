@@ -1,5 +1,5 @@
 import { Deserializer } from '@nestjs/microservices';
-import { RedisStreamContext } from './context/redis-stream.context';
+import { RedisStreamContext } from '../context/redis-stream.context';
 
 /**
  * @publicApi

@@ -1,5 +1,5 @@
 import Redis from 'ioredis';
-import { RedisConnectionOptions } from './interface/redis.interface';
+import { RedisConnectionOptions } from '../interface/redis-stream.interface';
 
 export function createRedisConnection(options?: RedisConnectionOptions) {
   if (!options) {

@@ -4,16 +4,16 @@ import { ERROR_EVENT } from '@nestjs/microservices/constants';
 import { Observable } from 'rxjs';
 import { v4 } from 'uuid';
 import { RedisStreamContext } from '../context/redis-stream.context';
-import { ClientConstructorOptions } from '../interface/contructor.options.interface';
 import {
   MessageInput,
   RedisConnectionOptions,
   RedisInstance,
-} from '../interface/redis.interface';
-import { createRedisConnection } from '../redis';
-import { RedisStreamResponseDeserializer } from '../redis-stream.deserializer';
-import { RedisStreamRequestSerializer } from '../redis-stream.serializer';
-import { RequestsMap } from './requestMap';
+} from '../interface/redis-stream.interface';
+import { ClientConstructorOptions } from '../interface/redis-stream.options.interface';
+import { RedisStreamResponseDeserializer } from '../serialization/redis-stream.deserializer';
+import { RedisStreamRequestSerializer } from '../serialization/redis-stream.serializer';
+import { createRedisConnection } from '../util/redisConnection';
+import { RequestsMap } from '../util/requestMap';
 
 @Injectable()
 export class RedisStreamClient extends ClientProxy {

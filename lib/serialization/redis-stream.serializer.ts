@@ -1,5 +1,5 @@
 import { Serializer } from '@nestjs/microservices';
-import { RedisStreamContext } from './context/redis-stream.context';
+import { RedisStreamContext } from '../context/redis-stream.context';
 
 export class RedisStreamRequestSerializer implements Serializer<any, string[]> {
   serialize(value: any, ctx: RedisStreamContext) {

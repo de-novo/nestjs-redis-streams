@@ -1,5 +1,5 @@
 import { RedisStreamContext } from '../../lib/context/redis-stream.context';
-import { RedisStreamResponseDeserializer } from '../../lib/redis-stream.deserializer';
+import { RedisStreamResponseDeserializer } from '../../lib/serialization/redis-stream.deserializer';
 
 describe('Redis Stream Deserializer', () => {
   const deserializer = new RedisStreamResponseDeserializer();

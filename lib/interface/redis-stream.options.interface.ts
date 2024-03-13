@@ -1,8 +1,11 @@
-import { RedisConnectionOptions, RedisStreamOptions } from './redis.interface';
+import {
+  RedisConnectionOptions,
+  RedisStreamOptions,
+} from './redis-stream.interface';
 import {
   ConsumerSerialization,
   ProducerSerialization,
-} from './serializtaion.interface';
+} from './redis-stream.serializtaion.interface';
 
 export interface ClientConstructorOptions {
   streams: RedisStreamOptions;
