@@ -20,36 +20,37 @@ export class RedisStreamServer
 {
   logger = new Logger(RedisStreamServer.name);
   private readonly transportID = REDIST_STREAM;
-
   private streamHandlerMap: Record<string, any> = {};
   private redis?: RedisInstance;
   private client?: RedisInstance;
+
   constructor(private readonly options: ServerConstructorOptions) {
     super();
     this.initializeSerializer(options);
     this.initializeDeserializer(options);
   }
-
+  //////////////////////////////////////////
+  // connect and stream handlers
+  //////////////////////////////////////////
   public async listen(callback: () => void) {
-    this.redis = createRedisConnection(this.options.connection);
-    this.client = createRedisConnection(this.options.connection);
-    this.handleConnectionError(this.redis);
-    this.handleConnectionError(this.client);
-    this.redis.on(CONNECT_EVENT, () => {
-      this.logger.log(
-        'Connected to Redis Server',
-        this.options.connection?.path,
-      );
-    });
-    this.client.on(CONNECT_EVENT, () => {
-      this.logger.log(
-        'Connected to Redis client',
-        this.options.connection?.path,
-      );
-    });
+    this.redis = await this.initializeRedis(this.options, true);
+    this.client = await this.initializeRedis(this.options);
     this.bindHandlers();
-
     callback();
+  }
+
+  private async initializeRedis(
+    options: ServerConstructorOptions,
+    isListener: boolean = false,
+  ) {
+    const redis = createRedisConnection(options.connection);
+    this.handleConnectionError(redis);
+    redis.on(CONNECT_EVENT, () => {
+      this.logger.log(
+        `Connected to Redis ${isListener ? 'Server' : 'Client'} at ${options.connection?.path}`,
+      );
+    });
+    return redis;
   }
 
   async bindHandlers() {
@@ -66,11 +67,35 @@ export class RedisStreamServer
     }
   }
 
-  public handleError(stream: any) {
-    stream.on(ERROR_EVENT, (err: any) => {
-      this.logger.error('Redis Streams Server ' + err);
-      this.close();
-    });
+  private async registerStream(pattern: string) {
+    try {
+      this.streamHandlerMap[pattern] = this.messageHandlers.get(pattern);
+
+      await this.createConsumerGroup(
+        pattern,
+        this.options.streams.consumerGroup,
+      );
+    } catch (e) {
+      this.handleErrorWithLogging('registerStream', e);
+    }
+  }
+
+  private async createConsumerGroup(stream: string, group: string) {
+    if (!this.redis) return;
+    try {
+      await this.redis.xgroup('CREATE', stream, group, '$', 'MKSTREAM');
+      return true;
+    } catch (error: any) {
+      if (error?.message && error.message.includes('BUSYGROUP')) {
+        this.logger.debug(
+          'Consumer Group "' + group + '" already exists for stream: ' + stream,
+        );
+        return true;
+      } else {
+        this.handleErrorWithLogging('createConsumerGroup', error);
+        return false;
+      }
+    }
   }
 
   private async listenOnStream(): Promise<void> {
@@ -99,6 +124,7 @@ export class RedisStreamServer
     });
     return this.listenOnStream();
   }
+
   private async notifyHandler(stream: string, messages: any[]) {
     try {
       const handler = this.streamHandlerMap[stream];
@@ -130,6 +156,10 @@ export class RedisStreamServer
       this.logger.error('server notifyHandler', e);
     }
   }
+
+  //////////////////////////////////////////
+  // response handling
+  //////////////////////////////////////////
   private async handleRepondBack({
     response,
     inboundContext,
@@ -153,6 +183,7 @@ export class RedisStreamServer
       this.logger.error('handleRepondBack', e);
     }
   }
+
   private async publishResponses(
     responses: StreamResponse,
     inboundContext: RedisStreamContext,
@@ -211,44 +242,9 @@ export class RedisStreamServer
     }
   }
 
-  private async registerStream(pattern: string) {
-    try {
-      this.streamHandlerMap[pattern] = this.messageHandlers.get(pattern);
-
-      await this.createConsumerGroup(
-        pattern,
-        this.options.streams.consumerGroup,
-      );
-    } catch (e) {
-      this.handleErrorWithLogging('registerStream', e);
-    }
-  }
-
-  private async createConsumerGroup(stream: string, group: string) {
-    if (!this.redis) return;
-    try {
-      await this.redis.xgroup('CREATE', stream, group, '$', 'MKSTREAM');
-      return true;
-    } catch (error: any) {
-      if (error?.message && error.message.includes('BUSYGROUP')) {
-        this.logger.debug(
-          'Consumer Group "' + group + '" already exists for stream: ' + stream,
-        );
-        return true;
-      } else {
-        this.handleErrorWithLogging('createConsumerGroup', error);
-        return false;
-      }
-    }
-  }
-
-  handleConnectionError(client: RedisInstance) {
-    client.on(ERROR_EVENT, (err) => {
-      this.logger.error('Reids Error', err);
-      this.close();
-    });
-  }
-
+  //////////////////////////////////////////
+  // serialization and deserialization initialization
+  //////////////////////////////////////////
   protected initializeSerializer(options: ServerConstructorOptions) {
     this.serializer =
       (options && options.serialization?.serializer) ||
@@ -260,6 +256,24 @@ export class RedisStreamServer
       (options && options.serialization?.deserializer) ||
       new RedisStreamResponseDeserializer();
   }
+
+  //////////////////////////////////////////
+  // Error Handling
+  //////////////////////////////////////////
+  public handleError(stream: any) {
+    stream.on(ERROR_EVENT, (err: any) => {
+      this.logger.error('Redis Streams Server ' + err);
+      this.close();
+    });
+  }
+
+  handleConnectionError(client: RedisInstance) {
+    client.on(ERROR_EVENT, (err) => {
+      this.logger.error('Reids Error', err);
+      this.close();
+    });
+  }
+
   private handleErrorWithLogging(context: string, error: any) {
     this.logger.error(`${context}: ${error.message}`, error.stack);
     this.close();
