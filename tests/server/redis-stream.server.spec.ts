@@ -166,4 +166,50 @@ describe('Redis Stream Server', () => {
       expect(result).toBeFalsy();
     });
   });
+
+  describe('createConsumerGroup', () => {
+    let xgroupMock: jest.Mock;
+    beforeEach(() => {
+      xgroupMock = jest.fn();
+      server['redis'] = {
+        xgroup: xgroupMock,
+      } as any;
+    });
+
+    afterEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should call xgroup with the correct arguments', async () => {
+      const result = await server['createConsumerGroup']('test', 'testGroup');
+      expect(result).toBeTruthy();
+      expect(xgroupMock).toHaveBeenCalledTimes(1);
+      expect(xgroupMock).toHaveBeenCalledWith(
+        'CREATE',
+        'test',
+        'testGroup',
+        '$',
+        'MKSTREAM',
+      );
+    });
+
+    it("should return true if error message includes 'BUSYGROUP'", async () => {
+      xgroupMock.mockRejectedValue({ message: 'BUSYGROUP' });
+      server['redis'] = {
+        xgroup: xgroupMock,
+      } as any;
+      const result = await server['createConsumerGroup']('test', 'testGroup');
+      expect(result).toBeTruthy();
+    });
+
+    it('should return false if there is an error', async () => {
+      xgroupMock.mockRejectedValue(new Error('test'));
+      server['redis'] = {
+        xgroup: xgroupMock,
+        disconnect: jest.fn(),
+      } as any;
+      const result = await server['createConsumerGroup']('test', 'testGroup');
+      expect(result).toBeFalsy();
+    });
+  });
 });
