@@ -5,6 +5,18 @@
   "author": "de-novo",
   "license": "MIT",
   "url": "https://github.com/de-novo/nestjs-redis-stream",
+  "keywords": [
+    "nest",
+    "nestjs",
+    "ioredis",
+    "redis",
+    "stream",
+    "redis stream",
+    "redis stream transport",
+    "microservice",
+    "nestjs redis stream",
+    "nestjs redis stream transport"
+  ],
   "private": false,
   "main": "dist/index.js",
   "scripts": {
