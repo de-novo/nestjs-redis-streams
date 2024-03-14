@@ -1,10 +1,17 @@
 {
   "name": "@de-novo/nestjs-redis-streams",
-  "version": "0.0.4",
-  "description": "",
+  "version": "0.0.5",
+  "description": "Redis Streams Transport for NestJS.",
   "author": "de-novo",
   "license": "MIT",
-  "url": "https://github.com/de-novo/nestjs-redis-stream",
+  "url": "https://github.com/de-novo/nestjs-redis-streams",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/de-novo/nestjs-redis-streams"
+  },
+  "bug": {
+    "url": "https://github.com/de-novo/nestjs-redis-streams/issues"
+  },
   "keywords": [
     "nest",
     "nestjs",
